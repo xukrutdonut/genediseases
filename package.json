@@ -1,0 +1,40 @@
+{
+  "name": "genereviews-database",
+  "version": "1.0.0",
+  "description": "Base de datos explorable de GeneReviews con interfaz web",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "start:rpi": "NODE_OPTIONS='--max-old-space-size=512 --gc-interval=50' node backend/server.js",
+    "dev": "nodemon backend/server.js",
+    "scrape": "node scraper/genereviews-scraper.js",
+    "scrape:rpi": "NODE_OPTIONS='--max-old-space-size=256' node scraper/genereviews-scraper.js",
+    "build": "npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
+    "install:all": "npm install && cd frontend && npm install",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "genetics",
+    "genereviews",
+    "database",
+    "medical",
+    "ncbi"
+  ],
+  "author": "GeneReviews Database Project",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.12.2",
+    "cheerio": "^1.1.2",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.1",
+    "nodemon": "^3.1.10",
+    "puppeteer": "^24.22.3",
+    "rate-limiter-flexible": "^8.0.1",
+    "sqlite3": "^5.1.7"
+  }
+}

@@ -1,0 +1,136 @@
+version: '3.8'
+
+services:
+  genereviews-app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: genereviews-rpi5:latest
+    container_name: genereviews-rpi5
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_PATH=/usr/src/app/database/genereviews.db
+      - SCRAPER_DELAY=2000  # Más lento en RPi5 para estabilidad
+      - SCRAPER_MAX_RETRIES=2
+      # Optimizaciones específicas para Raspberry Pi 5
+      - NODE_OPTIONS=--max-old-space-size=512 --gc-interval=50
+      - UV_THREADPOOL_SIZE=2
+      - SQLITE_TMPDIR=/tmp
+    volumes:
+      # Volumen persistente para la base de datos
+      - genereviews_data:/usr/src/app/database
+      - genereviews_logs:/usr/src/app/logs
+      # Cache temporal en tmpfs para mejorar rendimiento
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 100M
+    deploy:
+      resources:
+        limits:
+          # Limitar recursos para RPi5 (8GB modelo)
+          memory: 1G
+          cpus: '2.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 45s
+      timeout: 15s
+      retries: 3
+      start_period: 120s  # Más tiempo para RPi5
+    networks:
+      - genereviews-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Monitor de recursos para Raspberry Pi (opcional)
+  rpi-monitor:
+    image: michaelmiklis/rpi-monitor:latest
+    container_name: genereviews-rpi-monitor
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    privileged: true
+    volumes:
+      - /opt/vc:/opt/vc
+      - /boot:/boot
+      - /sys:/dockerhost/sys:ro
+      - /etc:/dockerhost/etc:ro
+      - /proc:/dockerhost/proc:ro
+      - /usr/lib:/dockerhost/usr/lib:ro
+    networks:
+      - genereviews-network
+    profiles:
+      - monitoring
+      
+  # Nginx como proxy reverso optimizado para RPi5
+  nginx-rpi:
+    image: nginx:alpine
+    container_name: genereviews-nginx-rpi5
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-rpi5.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - genereviews_logs:/var/log/nginx
+    depends_on:
+      - genereviews-app
+    networks:
+      - genereviews-network
+    profiles:
+      - production
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.5'
+
+  # Backup automático de la base de datos
+  db-backup:
+    image: alpine:latest
+    container_name: genereviews-backup
+    restart: unless-stopped
+    volumes:
+      - genereviews_data:/data:ro
+      - ./backups:/backups
+    environment:
+      - BACKUP_SCHEDULE=0 2 * * *  # Backup diario a las 2 AM
+    command: >
+      sh -c "
+        apk add --no-cache sqlite &&
+        echo '0 2 * * * sqlite3 /data/genereviews.db \".backup /backups/genereviews_\$$(date +%Y%m%d_%H%M%S).db\"' | crontab - &&
+        crond -f
+      "
+    profiles:
+      - backup
+
+volumes:
+  genereviews_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./database
+  genereviews_logs:
+    driver: local
+    driver_opts:
+      type: none  
+      o: bind
+      device: ./logs
+
+networks:
+  genereviews-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1500

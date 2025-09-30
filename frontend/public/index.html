@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base de Datos GeneReviews - Explorador Interactivo</title>
+    <meta name="description" content="Base de datos explorable de GeneReviews con búsqueda avanzada y navegación jerárquica">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <h1><i class="fas fa-dna"></i> GeneReviews Database</h1>
+                    <p>Base de datos explorable de revisiones genéticas</p>
+                </div>
+                <nav class="nav">
+                    <a href="#home" class="nav-link active" data-section="home">
+                        <i class="fas fa-home"></i> Inicio
+                    </a>
+                    <a href="#browse" class="nav-link" data-section="browse">
+                        <i class="fas fa-list"></i> Explorar
+                    </a>
+                    <a href="#search" class="nav-link" data-section="search">
+                        <i class="fas fa-search"></i> Buscar
+                    </a>
+                    <a href="#stats" class="nav-link" data-section="stats">
+                        <i class="fas fa-chart-bar"></i> Estadísticas
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            
+            <!-- Home Section -->
+            <section id="home" class="section active">
+                <div class="hero">
+                    <h2>Bienvenido a la Base de Datos GeneReviews</h2>
+                    <p class="hero-subtitle">
+                        Explore de forma interactiva toda la información contenida en GeneReviews, 
+                        incluyendo revisiones genéticas, categorías y estructura jerárquica completa.
+                    </p>
+                    
+                    <!-- Quick Search -->
+                    <div class="quick-search">
+                        <div class="search-box">
+                            <input type="text" id="quickSearchInput" placeholder="Buscar genes, enfermedades, autores..." autocomplete="off">
+                            <button id="quickSearchBtn" type="button">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        <div id="quickSearchSuggestions" class="suggestions"></div>
+                    </div>
+
+                    <!-- Quick Stats -->
+                    <div class="quick-stats" id="quickStats">
+                        <div class="stat-item">
+                            <div class="stat-number" id="totalReviews">--</div>
+                            <div class="stat-label">Reviews Totales</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="totalCategories">--</div>
+                            <div class="stat-label">Categorías</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="lastUpdated">--</div>
+                            <div class="stat-label">Última Actualización</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Featured Categories -->
+                <div class="featured-categories">
+                    <h3>Categorías Principales</h3>
+                    <div id="categoriesGrid" class="categories-grid">
+                        <!-- Categories will be loaded dynamically -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Browse Section -->
+            <section id="browse" class="section">
+                <div class="browse-header">
+                    <h2>Explorar por Categorías</h2>
+                    <p>Navegue por la estructura jerárquica completa de GeneReviews</p>
+                </div>
+
+                <!-- Category Filter -->
+                <div class="filters">
+                    <select id="categoryFilter" class="filter-select">
+                        <option value="">Todas las categorías</option>
+                    </select>
+                    <input type="text" id="browseSearch" placeholder="Filtrar reviews..." class="filter-input">
+                </div>
+
+                <!-- Results -->
+                <div class="browse-results">
+                    <div id="browseList" class="reviews-list">
+                        <!-- Reviews will be loaded dynamically -->
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="pagination" id="browsePagination">
+                        <!-- Pagination buttons will be added dynamically -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Search Section -->
+            <section id="search" class="section">
+                <div class="search-header">
+                    <h2>Búsqueda Avanzada</h2>
+                    <p>Busque en todo el contenido de las revisiones genéticas</p>
+                </div>
+
+                <!-- Advanced Search Form -->
+                <div class="search-form">
+                    <div class="search-row">
+                        <input type="text" id="searchQuery" placeholder="Términos de búsqueda..." class="search-input">
+                        <button id="advancedSearchBtn" type="button" class="search-btn">
+                            <i class="fas fa-search"></i> Buscar
+                        </button>
+                    </div>
+                    
+                    <div class="search-filters">
+                        <select id="searchCategory" class="filter-select">
+                            <option value="">Cualquier categoría</option>
+                        </select>
+                        
+                        <select id="searchType" class="filter-select">
+                            <option value="all">Todo el contenido</option>
+                            <option value="title">Solo títulos</option>
+                            <option value="abstract">Solo resúmenes</option>
+                            <option value="content">Solo contenido</option>
+                            <option value="authors">Solo autores</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Search Results -->
+                <div id="searchResults" class="search-results">
+                    <!-- Results will be displayed here -->
+                </div>
+            </section>
+
+            <!-- Stats Section -->
+            <section id="stats" class="section">
+                <div class="stats-header">
+                    <h2>Estadísticas de la Base de Datos</h2>
+                    <p>Análisis detallado del contenido de GeneReviews</p>
+                </div>
+
+                <div class="stats-dashboard" id="statsDashboard">
+                    <!-- Stats will be loaded dynamically -->
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Review Modal -->
+    <div id="reviewModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Título del Review</h3>
+                <button class="modal-close" id="modalClose">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Review content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="loading-spinner">
+        <div class="spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+        </div>
+        <p>Cargando...</p>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container">
+        <!-- Toast messages will appear here -->
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/api.js"></script>
+    <script src="/js/ui.js"></script>
+    <script src="/js/search.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>
