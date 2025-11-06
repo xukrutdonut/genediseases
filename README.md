@@ -1,13 +1,16 @@
-# Base de Datos GeneReviews - Explorador Interactivo
+# Base de Datos de Genética Clínica - Explorador Interactivo
 
-Una aplicación web completa que extrae, almacena y presenta de forma explorable todos los datos contenidos en GeneReviews de NCBI, incluyendo la estructura jerárquica completa.
+Una aplicación web completa que extrae, almacena y presenta de forma explorable datos de múltiples fuentes de genética clínica:
+- **GeneReviews de NCBI**: Reviews completas de enfermedades genéticas
+- **Oxford Desk Reference: Clinical Genetics and Genomics**: Contenido completo del libro de referencia
 
 ## 🧬 Características
 
 ### Funcionalidades Principales
 - **Web Scraping Inteligente**: Extrae automáticamente datos de GeneReviews respetando los límites del servidor
-- **Base de Datos Estructurada**: Almacenamiento eficiente en SQLite con índices optimizados para búsquedas
-- **Búsqueda Avanzada**: Sistema de búsqueda de texto completo con operadores especiales
+- **Procesamiento OCR de PDFs**: Extrae y procesa texto de libros de referencia médicos
+- **Base de Datos Unificada**: Almacenamiento eficiente en SQLite con índices optimizados para búsquedas
+- **Búsqueda Avanzada**: Sistema de búsqueda de texto completo (FTS5) que busca en todas las fuentes
 - **Interfaz Explorable**: Navegación jerárquica por categorías y contenido
 - **API REST**: Endpoints completos para acceso programático a los datos
 
@@ -15,7 +18,8 @@ Una aplicación web completa que extrae, almacena y presenta de forma explorable
 - **Backend**: Node.js con Express, SQLite, Puppeteer
 - **Frontend**: JavaScript vanilla con diseño responsive
 - **Scraping**: Rate limiting inteligente y manejo de errores
-- **Base de Datos**: SQLite con FTS (Full Text Search) y índices optimizados
+- **OCR**: Tesseract + Poppler para procesamiento de PDFs
+- **Base de Datos**: SQLite con FTS5 (Full Text Search) y índices optimizados
 - **Cache**: Sistema de caché en memoria para mejores rendimientos
 
 ## 🚀 Instalación y Configuración
@@ -24,7 +28,21 @@ Una aplicación web completa que extrae, almacena y presenta de forma explorable
 ```bash
 - Node.js v14+ 
 - npm v6+
-- Al menos 1GB de espacio libre
+- tesseract-ocr (para procesamiento de PDFs)
+- poppler-utils (para extracción de PDFs)
+- Al menos 2GB de espacio libre
+```
+
+### Instalación de dependencias del sistema
+```bash
+# Ubuntu/Debian
+sudo apt-get install tesseract-ocr poppler-utils
+
+# macOS
+brew install tesseract poppler
+
+# Fedora/RHEL
+sudo dnf install tesseract poppler-utils
 ```
 
 ### Instalación Rápida
@@ -38,15 +56,17 @@ npm install
 # 3. Configurar variables de entorno (opcional)
 cp .env.example .env
 
-# 4. Ejecutar scraping inicial (puede tardar varios minutos)
-npm run scrape
+# 4. Ejecutar scraping inicial y procesamiento de PDF (puede tardar 10-20 minutos)
+npm run setup
 
-# 5. Cargar datos en la base de datos
+# 5. Iniciar el servidor
 npm start
-# En otra terminal:
-curl -X POST http://localhost:3000/api/admin/load-data
 
-# 6. Abrir en el navegador
+# 6. En otra terminal, cargar datos en la base de datos
+curl -X POST http://localhost:3000/api/admin/load-data
+curl -X POST http://localhost:3000/api/admin/load-book-data
+
+# 7. Abrir en el navegador
 open http://localhost:3000
 ```
 
@@ -105,29 +125,46 @@ genediseases/
 ### Información General
 ```http
 GET /api/health              # Estado de la API
-GET /api/stats               # Estadísticas generales
-GET /api/categories          # Lista de categorías
+GET /api/stats               # Estadísticas generales (GeneReviews + libros)
+GET /api/categories          # Lista de categorías de GeneReviews
+GET /api/books               # Lista de fuentes de libros
 ```
 
-### Búsqueda y Navegación
+### Búsqueda y Navegación - GeneReviews
 ```http
-GET /api/search?q=query             # Búsqueda de texto completo
+GET /api/search?q=query             # Búsqueda en GeneReviews
 GET /api/reviews                    # Listar todos los reviews
 GET /api/reviews/:id                # Obtener review específico
 GET /api/categories/:cat/reviews    # Reviews por categoría
 ```
 
+### Búsqueda - Libros y PDFs
+```http
+GET /api/books/search?q=query       # Búsqueda en libros
+GET /api/books/sections/:id         # Obtener sección específica
+GET /api/search/all?q=query         # Búsqueda en todas las fuentes
+```
+
 ### Administración
 ```http
-POST /api/admin/load-data           # Cargar datos desde JSON
+POST /api/admin/load-data           # Cargar datos de GeneReviews
+POST /api/admin/load-book-data      # Cargar datos de libros procesados
 ```
 
 ## 📝 Esquema de Base de Datos
 
-### Tablas Principales
+### Tablas Principales - GeneReviews
 - **reviews**: Información principal de cada review
 - **authors**: Autores asociados a cada review
 - **sections**: Secciones y contenido estructurado
+- **data_tables**: Tablas de datos extraídas
+- **review_references**: Referencias bibliográficas
+- **categories**: Categorías organizacionales
+- **reviews_fts**: Índice de búsqueda de texto completo
+
+### Tablas - Contenido de Libros
+- **book_sections**: Secciones extraídas de libros/PDFs
+- **book_sections_fts**: Índice de búsqueda para libros
 - **data_tables**: Tablas y datos tabulares
 - **references**: Referencias bibliográficas
 - **categories**: Categorías organizacionales

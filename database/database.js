@@ -85,16 +85,36 @@ class GeneReviewsDatabase {
                 review_count INTEGER DEFAULT 0
             );
 
+            -- Tabla para contenido de libros/PDFs (Oxford Clinical Genetics)
+            CREATE TABLE IF NOT EXISTS book_sections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source TEXT NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT,
+                page INTEGER,
+                section_order INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
             -- Índices para búsquedas rápidas
             CREATE INDEX IF NOT EXISTS idx_reviews_title ON reviews(title);
             CREATE INDEX IF NOT EXISTS idx_reviews_category ON reviews(category);
             CREATE INDEX IF NOT EXISTS idx_sections_title ON sections(title);
             CREATE INDEX IF NOT EXISTS idx_sections_content ON sections(content);
             CREATE INDEX IF NOT EXISTS idx_authors_name ON authors(name);
+            CREATE INDEX IF NOT EXISTS idx_book_sections_title ON book_sections(title);
+            CREATE INDEX IF NOT EXISTS idx_book_sections_source ON book_sections(source);
             
             -- Tabla para búsqueda de texto completo
             CREATE VIRTUAL TABLE IF NOT EXISTS reviews_fts USING fts5(
                 title, abstract, content, authors, category,
+                content='',
+                contentless_delete=1
+            );
+
+            -- Tabla FTS para contenido de libros
+            CREATE VIRTUAL TABLE IF NOT EXISTS book_sections_fts USING fts5(
+                source, title, content,
                 content='',
                 contentless_delete=1
             );
@@ -452,6 +472,139 @@ class GeneReviewsDatabase {
                 else resolve(rows);
             });
         });
+    }
+
+    async loadBookDataFromJSON(jsonPath) {
+        try {
+            const jsonData = await fs.readFile(jsonPath, 'utf8');
+            const data = JSON.parse(jsonData);
+            
+            console.log(`Loading book data from: ${data.source}`);
+            console.log(`Total sections: ${data.sections.length}`);
+            
+            let insertedCount = 0;
+            
+            for (let i = 0; i < data.sections.length; i++) {
+                const section = data.sections[i];
+                await this.insertBookSection({
+                    source: data.source,
+                    title: section.title,
+                    content: section.content,
+                    page: section.page,
+                    section_order: i
+                });
+                insertedCount++;
+                
+                if (insertedCount % 100 === 0) {
+                    console.log(`Processed ${insertedCount} sections...`);
+                }
+            }
+            
+            console.log(`✓ Successfully loaded ${insertedCount} book sections`);
+            
+            return {
+                source: data.source,
+                sectionsLoaded: insertedCount,
+                timestamp: new Date().toISOString()
+            };
+        } catch (error) {
+            console.error('Error loading book data:', error);
+            throw error;
+        }
+    }
+
+    async insertBookSection(sectionData) {
+        const insertSQL = `
+            INSERT INTO book_sections (source, title, content, page, section_order)
+            VALUES (?, ?, ?, ?, ?)
+        `;
+        
+        return new Promise((resolve, reject) => {
+            this.db.run(insertSQL, [
+                sectionData.source,
+                sectionData.title,
+                sectionData.content,
+                sectionData.page,
+                sectionData.section_order
+            ], function(err) {
+                if (err) reject(err);
+                else {
+                    // Update FTS index
+                    const insertFTS = `
+                        INSERT INTO book_sections_fts (rowid, source, title, content)
+                        VALUES (?, ?, ?, ?)
+                    `;
+                    this.run(insertFTS, [
+                        this.lastID,
+                        sectionData.source,
+                        sectionData.title,
+                        sectionData.content
+                    ], (err) => {
+                        if (err) reject(err);
+                        else resolve(this.lastID);
+                    });
+                }
+            });
+        });
+    }
+
+    async searchBookSections(query, limit = 20, offset = 0) {
+        const sql = `
+            SELECT bs.*
+            FROM book_sections bs
+            JOIN book_sections_fts fts ON bs.id = fts.rowid
+            WHERE book_sections_fts MATCH ?
+            ORDER BY rank
+            LIMIT ? OFFSET ?
+        `;
+        
+        return new Promise((resolve, reject) => {
+            this.db.all(sql, [query, limit, offset], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+    }
+
+    async getBookSectionById(id) {
+        const sql = 'SELECT * FROM book_sections WHERE id = ?';
+        
+        return new Promise((resolve, reject) => {
+            this.db.get(sql, [id], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+    }
+
+    async getAllBookSources() {
+        const sql = `
+            SELECT source, COUNT(*) as section_count
+            FROM book_sections
+            GROUP BY source
+            ORDER BY source
+        `;
+        
+        return new Promise((resolve, reject) => {
+            this.db.all(sql, [], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+    }
+
+    async searchAll(query, limit = 20, offset = 0) {
+        // Search both GeneReviews and book sections
+        const [reviewResults, bookResults] = await Promise.all([
+            this.searchReviews(query, Math.floor(limit / 2), offset).catch(() => []),
+            this.searchBookSections(query, Math.ceil(limit / 2), offset).catch(() => [])
+        ]);
+        
+        return {
+            reviews: reviewResults,
+            bookSections: bookResults,
+            total: reviewResults.length + bookResults.length
+        };
     }
 
     async close() {

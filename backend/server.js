@@ -236,6 +236,7 @@ class GeneReviewsServer {
                 const categories = await this.db.getAllCategories();
                 const totalCategories = categories.length;
                 const totalReviews = categories.reduce((sum, cat) => sum + (cat.actual_count || 0), 0);
+                const bookSources = await this.db.getAllBookSources();
 
                 res.json({
                     success: true,
@@ -243,11 +244,128 @@ class GeneReviewsServer {
                         totalReviews,
                         totalCategories,
                         categoriesBreakdown: categories,
+                        bookSources,
                         lastUpdated: new Date().toISOString()
                     }
                 });
             } catch (error) {
                 console.error('Error fetching statistics:', error);
+                res.status(500).json({
+                    success: false,
+                    error: 'Internal server error'
+                });
+            }
+        });
+
+        // Search all sources (GeneReviews + Books)
+        this.app.get('/api/search/all', async (req, res) => {
+            try {
+                const { q: query, limit = 20, offset = 0 } = req.query;
+                
+                if (!query) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Query parameter "q" is required'
+                    });
+                }
+
+                const results = await this.db.searchAll(
+                    query, 
+                    parseInt(limit), 
+                    parseInt(offset)
+                );
+
+                res.json({
+                    success: true,
+                    data: results,
+                    query,
+                    pagination: {
+                        limit: parseInt(limit),
+                        offset: parseInt(offset)
+                    }
+                });
+            } catch (error) {
+                console.error('Error searching all sources:', error);
+                res.status(500).json({
+                    success: false,
+                    error: 'Internal server error'
+                });
+            }
+        });
+
+        // Get all book sources
+        this.app.get('/api/books', async (req, res) => {
+            try {
+                const sources = await this.db.getAllBookSources();
+                res.json({
+                    success: true,
+                    data: sources
+                });
+            } catch (error) {
+                console.error('Error fetching book sources:', error);
+                res.status(500).json({
+                    success: false,
+                    error: 'Internal server error'
+                });
+            }
+        });
+
+        // Search book sections
+        this.app.get('/api/books/search', async (req, res) => {
+            try {
+                const { q: query, limit = 20, offset = 0 } = req.query;
+                
+                if (!query) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Query parameter "q" is required'
+                    });
+                }
+
+                const sections = await this.db.searchBookSections(
+                    query, 
+                    parseInt(limit), 
+                    parseInt(offset)
+                );
+
+                res.json({
+                    success: true,
+                    data: sections,
+                    query,
+                    pagination: {
+                        limit: parseInt(limit),
+                        offset: parseInt(offset),
+                        count: sections.length
+                    }
+                });
+            } catch (error) {
+                console.error('Error searching book sections:', error);
+                res.status(500).json({
+                    success: false,
+                    error: 'Internal server error'
+                });
+            }
+        });
+
+        // Get specific book section by ID
+        this.app.get('/api/books/sections/:id', async (req, res) => {
+            try {
+                const { id } = req.params;
+                const section = await this.db.getBookSectionById(parseInt(id));
+
+                if (!section) {
+                    return res.status(404).json({
+                        success: false,
+                        error: 'Book section not found'
+                    });
+                }
+
+                res.json({
+                    success: true,
+                    data: section
+                });
+            } catch (error) {
+                console.error('Error fetching book section:', error);
                 res.status(500).json({
                     success: false,
                     error: 'Internal server error'
@@ -270,6 +388,26 @@ class GeneReviewsServer {
                 });
             } catch (error) {
                 console.error('Error loading data:', error);
+                res.status(500).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+        });
+
+        // Load book/PDF data from JSON
+        this.app.post('/api/admin/load-book-data', async (req, res) => {
+            try {
+                const jsonPath = path.join(__dirname, '..', 'data', 'pdf_extracted', 'oxford_genetics_data.json');
+                const result = await this.db.loadBookDataFromJSON(jsonPath);
+                
+                res.json({
+                    success: true,
+                    message: 'Book data loaded successfully',
+                    data: result
+                });
+            } catch (error) {
+                console.error('Error loading book data:', error);
                 res.status(500).json({
                     success: false,
                     error: error.message

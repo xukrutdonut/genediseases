@@ -1,9 +1,0 @@
-# Temperature monitor para Raspberry Pi 5
-FROM alpine:latest
-
-RUN apk add --no-cache curl bash
-
-COPY temp-monitor.sh /usr/local/bin/temp-monitor.sh
-RUN chmod +x /usr/local/bin/temp-monitor.sh
-
-CMD ["/usr/local/bin/temp-monitor.sh"]
